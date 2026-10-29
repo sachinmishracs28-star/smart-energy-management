@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GreenGrid | Smart Energy Management</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<header>
+  <div>
+    <h1>GreenGrid</h1>
+    <p>Live energy, solar and AI forecast for the campus building</p>
+  </div>
+  <label>Room
+    <select id="room">
+      <option value="All">Whole building</option>
+      {% for r in rooms %}<option>{{ r }}</option>{% endfor %}
+    </select>
+  </label>
+</header>
+
+<main>
+  <section class="kpis">
+    <div class="kpi"><span>Energy today</span><b id="k-total">–</b><small>kWh</small></div>
+    <div class="kpi"><span>Solar today</span><b id="k-solar" class="solar">–</b><small>kWh</small></div>
+    <div class="kpi"><span>Grid bill today</span><b id="k-cost">–</b><small>₹ at ₹8 per kWh</small></div>
+    <div class="kpi"><span>CO₂ avoided</span><b id="k-co2">–</b><small>kg by using solar</small></div>
+    <div class="kpi score"><span>Green score</span><b id="k-score">–</b><small>out of 100</small></div>
+  </section>
+
+  <section class="stack-wrap">
+    <h2>Floors right now</h2>
+    <div id="floors" class="floors"></div>
+  </section>
+
+  <section class="grid">
+    <div class="panel wide"><h2>Live power and solar (kW)</h2><div class="cv"><canvas id="live"></canvas></div></div>
+    <div class="panel"><h2>Where today's energy came from</h2><div class="cv small"><canvas id="mix"></canvas></div></div>
+    <div class="panel wide"><h2>Next 24 hours: AI forecast (kW)</h2><div class="cv"><canvas id="fc"></canvas></div></div>
+    <div class="panel">
+      <h2>Alerts and tips</h2>
+      <ul id="alerts" class="alerts"></ul>
+      <div class="model">
+        <p id="model-info">Model loading…</p>
+        <button id="retrain">Retrain model</button>
+      </div>
+    </div>
+  </section>
+</main>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
