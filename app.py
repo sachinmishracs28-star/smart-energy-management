@@ -1,4 +1,5 @@
 import os, sqlite3, threading, time
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from flask import Flask, jsonify, render_template, request
 import simulator as sim
@@ -10,17 +11,33 @@ TARIFF = 8.0     # Rs per kWh (assumption)
 CO2 = 0.82       # kg CO2 per kWh grid electricity (approx. India average)
 app = Flask(__name__)
 
+@contextmanager
 def db():
-    c = sqlite3.connect(DB)
+    # Close every connection deterministically and wait for concurrent writers.
+    c = sqlite3.connect(DB, timeout=30, check_same_thread=False)
     c.row_factory = sqlite3.Row
-    return c
+    c.execute("PRAGMA busy_timeout=30000")
+    try:
+        yield c
+        c.commit()
+    except Exception:
+        c.rollback()
+        raise
+    finally:
+        c.close()
+
+# Serialize simulator writes within this application process.
+_write_lock = threading.Lock()
 
 def save(c, r):
     c.execute("INSERT INTO readings(ts,room,hour,temperature,occupancy,lux,energy,solar) "
               "VALUES(:ts,:room,:hour,:temperature,:occupancy,:lux,:energy,:solar)", r)
 
 def init_db():
+    # WAL allows dashboard reads while the simulator writes new readings.
     with db() as c:
+        c.execute("PRAGMA journal_mode=WAL")
+        c.execute("PRAGMA synchronous=NORMAL")
         c.execute("""CREATE TABLE IF NOT EXISTS readings(
             id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT, room TEXT, hour INTEGER,
             temperature REAL, occupancy INTEGER, lux REAL, energy REAL, solar REAL)""")
@@ -39,9 +56,14 @@ def train_model():
 def live_loop():                       # the "IoT gateway": new readings every 5 s
     while True:
         now = datetime.now()
-        with db() as c:
-            for room in sim.ROOMS:
-                save(c, sim.make_reading(room, now))
+        try:
+            with _write_lock:
+                with db() as c:
+                    for room in sim.ROOMS:
+                        save(c, sim.make_reading(room, now))
+        except sqlite3.OperationalError:
+            # A transient lock should not permanently stop simulated readings.
+            app.logger.exception("Temporary SQLite write issue in simulator")
         time.sleep(5)
 
 def is_waste(r):
