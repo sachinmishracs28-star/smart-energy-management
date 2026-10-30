@@ -6,7 +6,7 @@ import simulator as sim
 import ml_model as ml
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB = os.environ.get("ENERGY_DB_PATH", os.path.join(BASE_DIR, "energy.db"))
+DB = os.environ.get("ENERGY_DB_PATH", os.path.join(BASE_DIR, "energy_v2.db"))
 TARIFF = 8.0     # Rs per kWh (assumption)
 CO2 = 0.82       # kg CO2 per kWh grid electricity (approx. India average)
 app = Flask(__name__)
