@@ -1,5 +1,14 @@
 # GreenGrid: AIoT Smart Energy Management for Green Buildings (macOS)
 
+## Deployment (Render)
+1. Push this folder's contents to a GitHub repository. Keep `templates/` and `static/` folders in the repository root.
+2. Create a Render **Web Service** connected to that repository.
+3. Build command: `pip install -r requirements.txt`
+4. Start command: `gunicorn --workers 1 --threads 4 --timeout 120 app:app`
+5. Render will provide a public `onrender.com` URL to share with your teacher.
+
+The app creates its SQLite database at startup. On free hosting, local database files may reset when the service is redeployed or its instance is replaced. The project currently uses simulated IoT readings, not physical sensors.
+
 ## Quick start (MacBook, Apple Silicon or Intel)
 1. Open Terminal in this folder (right-click folder > New Terminal at Folder).
 2. Run:

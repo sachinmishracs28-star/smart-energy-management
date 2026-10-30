@@ -1,10 +1,11 @@
-import sqlite3, threading, time
+import os, sqlite3, threading, time
 from datetime import datetime, timedelta
 from flask import Flask, jsonify, render_template, request
 import simulator as sim
 import ml_model as ml
 
-DB = "energy.db"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB = os.environ.get("ENERGY_DB_PATH", os.path.join(BASE_DIR, "energy.db"))
 TARIFF = 8.0     # Rs per kWh (assumption)
 CO2 = 0.82       # kg CO2 per kWh grid electricity (approx. India average)
 app = Flask(__name__)
@@ -103,7 +104,12 @@ def api_forecast():
         demand.append(round(sum(ml.predict(items)), 2))
         solar.append(round(sim.solar_total_kw(h) * len(rooms) / len(sim.ROOMS), 2))
         labels.append(f"{h:02d}:00")
-    return jsonify({"labels": labels, "demand": demand, "solar": solar})
+    grid = [round(max(d - so, 0), 2) for d, so in zip(demand, solar)]
+    hourly_cost = [round(g * TARIFF, 2) for g in grid]
+    hourly_co2 = [round(g * CO2, 2) for g in grid]
+    return jsonify({"labels": labels, "demand": demand, "solar": solar,
+                    "grid": grid, "hourly_cost": hourly_cost, "hourly_co2": hourly_co2,
+                    "tariff": TARIFF, "grid_co2_factor": CO2})
 
 @app.route("/api/summary")
 def api_summary():
@@ -129,7 +135,11 @@ def api_retrain():
     train_model()
     return jsonify(ml.metrics)
 
+# Initialize data and start the simulated IoT gateway when the app is imported by
+# either the local Python runner or a production WSGI server such as Gunicorn.
+init_db()
+_gateway = threading.Thread(target=live_loop, daemon=True, name="simulated-iot-gateway")
+_gateway.start()
+
 if __name__ == "__main__":
-    init_db()
-    threading.Thread(target=live_loop, daemon=True).start()
-    app.run(debug=False, port=5001)
+    app.run(debug=False, host="0.0.0.0", port=int(os.environ.get("PORT", 5001)))
